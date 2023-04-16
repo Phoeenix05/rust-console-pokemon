@@ -1,49 +1,58 @@
-use inquire::Select;
+use crossterm::{
+    event::DisableMouseCapture,
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, LeaveAlternateScreen},
+};
+use std::{io, thread, time::Duration};
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    layout::{Constraint, Layout},
+    widgets::{Block, Borders},
+    Frame, Terminal,
+};
 
-#[derive(Debug, Clone)]
-enum PokemonType {
-    Grass,
-    Fire,
-    Water,
-    Electric,
+fn ui<B: Backend>(f: &mut Frame<B>) {
+    let chunks = Layout::default()
+        .direction(tui::layout::Direction::Vertical)
+        .margin(1)
+        .constraints(
+            [
+                Constraint::Percentage(10),
+                Constraint::Percentage(80),
+                Constraint::Percentage(10),
+            ]
+            .as_ref(),
+        )
+        .split(f.size());
+    let block = Block::default().title("Block").borders(Borders::ALL);
+    f.render_widget(block, chunks[0]);
+    let block = Block::default().title("Block 2").borders(Borders::ALL);
+    f.render_widget(block, chunks[1]);
 }
 
-struct Pokemon {
-    name: String,
-    pokemon_type: PokemonType,
-}
+fn main() -> Result<(), io::Error> {
+    enable_raw_mode()?;
+    let stdout = io::stdout();
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
 
-macro_rules! pokemon {
-    ($name:expr, $pokemon_type:expr) => {
-        Pokemon {
-            name: $name,
-            pokemon_type: $pokemon_type,
-        }
-    };
-}
+    terminal.draw(|f| {
+        // let size = f.size();
+        // let block = Block::default().title("Block").borders(Borders::ALL);
+        // f.render_widget(block, size);
+        ui(f);
+    })?;
+    // ui(terminal);
 
-// const POKEMON: Vec<Pokemon> = vec![
-//     pokemon!("Pikachu", PokemonType::Electric)
-// ];
+    thread::sleep(Duration::from_millis(5000));
 
-fn main() {
-    let pokemon: Vec<Pokemon> = vec![
-        pokemon!("Pikachu".to_string(), PokemonType::Electric),
-        pokemon!("Charmander".to_string(), PokemonType::Fire),
-        pokemon!("Bulbasaur".to_string(), PokemonType::Grass),
-        pokemon!("Squirtle".to_string(), PokemonType::Water),
-    ];
+    disable_raw_mode()?;
+    execute!(
+        terminal.backend_mut(),
+        LeaveAlternateScreen,
+        DisableMouseCapture
+    )?;
+    terminal.show_cursor()?;
 
-    let options = pokemon
-        .iter()
-        .map(|pokemon| format!("{} ({:?})", pokemon.name.clone(), pokemon.pokemon_type.clone()))
-        .collect::<Vec<String>>();
-
-    let answer = Select::new("Select a pokemon", options).prompt();
-    // _ = Confirm::new("message").prompt();
-
-    match answer {
-        Ok(name) => println!("{}", name),
-        Err(_) => println!("An error happened when asking you to select a pokemon"),
-    }
+    Ok(())
 }
